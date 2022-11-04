@@ -1,6 +1,8 @@
 import base64
 import subprocess
+from functools import partial
 
+import mss
 import win32gui, win32ui, win32con
 import pandas as pd
 
@@ -9,6 +11,26 @@ from typing import Union
 import numpy as np
 import cv2
 from time import sleep
+
+
+def resize_image( scale_percent=50,filtermethod=cv2.INTER_LINEAR,image=None):
+    "resizes an image according to the given filter/interpolation method NEAREST, BILINEAR/INTER_LINEAR, BICUBIC, LANCZOS, INTERAREA"
+    if scale_percent <0:
+        return image
+    times = scale_percent/ 100
+    x = int(image.shape[1] * times)
+    y = int(image.shape[0] * times)
+
+    return cv2.resize(image.copy(), (x,y), interpolation=filtermethod)
+
+def get_screenshot_with_msc(monitor: int = 1,brg_to_rgb=False):
+    with mss.mss() as sct:
+        bildneu = np.array(sct.grab(mss.mss().monitors[monitor]))
+    bildneu = cv2.cvtColor(bildneu, cv2.COLOR_BGRA2BGR)
+
+    if brg_to_rgb:
+        return bgr_to_rgb(bildneu)
+    return bildneu
 
 
 def get_screenshot_adb(
@@ -127,6 +149,13 @@ class ScreenShots:
         self.show_edited_images = False
         self.adb_lock = Lock()
         self.hwnd_screenshot_grabber = None
+        self.monitor=None
+        self.resizemethod = partial (resize_image,-1,cv2.INTER_NEAREST)
+
+    def set_resize_ratio(self,  scale_percent=50,filtermethod=cv2.INTER_NEAREST):
+        self.resizemethod = partial (resize_image,scale_percent,filtermethod )
+        return self
+
 
     def enable_show_edited_images(self):
         self.show_edited_images = True
@@ -143,6 +172,10 @@ class ScreenShots:
         print(self.hwnd)
         return self
 
+    def choose_monitor_for_screenshot(self, monitor=1):
+        self.monitor=monitor
+        return self
+
     def get_all_windows_with_handle(self):
         self.windowsdf = get_all_hwnds_and_titles()
         return self
@@ -153,6 +186,8 @@ class ScreenShots:
         sleep_time: Union[float, int, None] = 0.05,
         quit_key: str = "e",
     ):
+        cv2.destroyAllWindows()
+        sleep(1)
 
         self.imshow_screenshot_adb(
             brg_to_rgb=brg_to_rgb,
@@ -169,6 +204,11 @@ class ScreenShots:
             deviceserial=self.adb_serial,
             brg_to_rgb=brg_to_rgb,
         )
+    def imget_monitor(self,brg_to_rgb:bool=False):
+        return get_screenshot_with_msc(
+            monitor=self.monitor,
+            brg_to_rgb=brg_to_rgb,
+        )
 
     def imshow_hwnd(
         self,
@@ -176,6 +216,8 @@ class ScreenShots:
         sleep_time: Union[float, int, None] = 0.05,
         quit_key: str = "q",
     ):
+        cv2.destroyAllWindows()
+
         self.imshow_screenshot(
             window_name=str(self.hwnd),
             sleep_time=sleep_time,
@@ -202,13 +244,63 @@ class ScreenShots:
         sleep_time: Union[float, int, None] = 0.05,
         quit_key: str = "q",
     ) -> None:
-
+        cv2.destroyAllWindows()
+        sleep(1)
         t = Thread(
             target=self.cv_showscreenshotsadb,
             args=(brg_to_rgb, window_name, sleep_time, quit_key,),
         )
         t.start()
+    def imshow_screenshot_monitor(
+        self,
+        brg_to_rgb=False,
+        window_name: str = "",
+        sleep_time: Union[float, int, None] = 0.05,
+        quit_key: str = "q",
+    ) -> None:
+        cv2.destroyAllWindows()
+        sleep(1)
+        t = Thread(
+            target=self.cv_showscreenshotsmonitor,
+            args=(brg_to_rgb, window_name, sleep_time, quit_key),
+        )
+        t.start()
+    def cv_showscreenshotsmonitor(
+        self,
+        brg_to_rgb=False,
+        window_name: str = "",
+        sleep_time: Union[float, int, None] = 0.05,
+        quit_key: str = "q",
 
+    ):
+        while True:
+            if cv2.waitKey(1) & 0xFF == ord(quit_key):
+                cv2.waitKey(0)
+                # cv2.destroyAllWindows()
+                return
+
+            try:
+                if self.feed_edited_screenshot.enabled and self.feed_edited_screenshot:
+                    try:
+                        cv2.imshow(
+                            str(window_name),
+                            self.resizemethod(self.feed_edited_screenshot.allimagestoshow[0]),
+                        )
+                    except Exception:
+                        pass
+
+                else:
+                    cv2.imshow(
+                        str(window_name),
+                        self.resizemethod(get_screenshot_with_msc(
+                            monitor=self.monitor,
+                            brg_to_rgb=brg_to_rgb,
+                        )),
+                    )
+            except Exception as Fehler:
+                print(Fehler)
+                continue
+            sleep(sleep_time)
     def cv_showscreenshotsadb(
         self,
         brg_to_rgb=False,
@@ -227,7 +319,7 @@ class ScreenShots:
                     try:
                         cv2.imshow(
                             str(window_name),
-                            self.feed_edited_screenshot.allimagestoshow[0],
+                            self.resizemethod(self.feed_edited_screenshot.allimagestoshow[0]),
                         )
                     except Exception:
                         pass
@@ -235,12 +327,12 @@ class ScreenShots:
                 else:
                     cv2.imshow(
                         str(window_name),
-                        get_screenshot_adb(
+                        self.resizemethod(get_screenshot_adb(
                             adb_executable=self.adb_path,
                             deviceserial=self.adb_serial,
                             brg_to_rgb=brg_to_rgb,
                         ),
-                    )
+                    ))
             except Exception as Fehler:
                 print(Fehler)
                 continue
@@ -290,9 +382,9 @@ class ScreenShots:
                 else:
                     cv2.imshow(
                         str(window_name),
-                        self.hwnd_screenshot_grabber.get_screenshot(
+                        self.resizemethod(self.hwnd_screenshot_grabber.get_screenshot(
                             brg_to_rgb=brg_to_rgb
-                        ),
+                        )),
                     )
             except Exception as Fehler:
                 print(Fehler)
