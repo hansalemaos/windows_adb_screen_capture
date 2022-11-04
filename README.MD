@@ -6,9 +6,9 @@ pip install windows-adb-screen-capture
 ```
 
 #### Update 2022/11/04
-Screenshots can now be resized for imshow
-Screenshots can be taken from the whole screen, and even multiple screens 
-Bugfix: Closing and reopening imshow is working now
+- Screenshots can now be resized for imshow
+- Screenshots can be taken from the whole screen, and even multiple screens 
+- Bugfix: Closing and reopening imshow is working now
 
 ```python
 from windows_adb_screen_capture import ScreenShots
