@@ -14,6 +14,7 @@ pip install windows-adb-screen-capture
 from windows_adb_screen_capture import ScreenShots
 sc2 = ScreenShots()
 sc2.set_resize_ratio(50).choose_monitor_for_screenshot(0).imshow_screenshot_monitor() #0 for all screens, 1 for screen 1, 2 for screen 2...
+
 ```
 
 #### Example with BlueStacks (using adb)
