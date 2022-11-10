@@ -38,12 +38,19 @@ def get_screenshot_adb(
     deviceserial="localhost:5735",
     brg_to_rgb=False,
 ):
-    proc = subprocess.run(
-        f"{adb_executable} -s {deviceserial} shell screencap -p | busybox base64",
-        shell=False,
-        capture_output=True,
-    )
-    png_screenshot_data = base64.b64decode(proc.stdout)
+    # proc = subprocess.run(
+    #     f"{adb_executable} -s {deviceserial} shell screencap -p | busybox base64",
+    #     shell=False,
+    #     capture_output=True,
+    # )
+    # png_screenshot_data = base64.b64decode(proc.stdout)
+    # images = cv2.imdecode(
+    #     np.frombuffer(png_screenshot_data, np.uint8), cv2.IMREAD_COLOR
+    # )
+
+    with subprocess.Popen((f"{adb_executable} -s {deviceserial} shell screencap -p"), stdout=subprocess.PIPE) as p:
+        output = p.stdout.read()
+    png_screenshot_data = output.replace(b'\r\n', b'\n')
     images = cv2.imdecode(
         np.frombuffer(png_screenshot_data, np.uint8), cv2.IMREAD_COLOR
     )
