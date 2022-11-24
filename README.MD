@@ -2,6 +2,22 @@
 
 ```python
 pip install windows-adb-screen-capture
+
+# If you get the following error during the installation
+#       ModuleNotFoundError: No module named 'win32.distutils.command'
+#       [end of output]
+# 
+#   note: This error originates from a subprocess, and is likely not a problem with pip.
+# error: subprocess-exited-with-error
+# 
+# Try this:
+
+pip install windows-adb-screen-capture --no-deps
+pip install pywin32
+pip install mss
+pip install pandas
+pip install opencv-python
+
 ```
 
 #### Update 2022/11/10
